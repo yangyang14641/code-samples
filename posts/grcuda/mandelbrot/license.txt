@@ -1,4 +1,4 @@
-# Copyright (c) 1993-2018, NVIDIA CORPORATION. All rights reserved.
+# Copyright (c) 1993-2019, NVIDIA CORPORATION. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -23,28 +23,3 @@
 # OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-CUDA_INSTALL_DIR=/usr/local/cuda
-
-CXXFLAGS=-std=c++11 -DONNX_ML=1 -Wall -I$(CUDA_INSTALL_DIR)/include 
-LDFLAGS=-L$(CUDA_INSTALL_DIR)/lib64 -L$(CUDA_INSTALL_DIR)/lib64/stubs -L/usr/local/lib
-LDLIBS=-Wl,--start-group -lnvonnxparser -lnvinfer -lcudart_static -lonnx -lonnx_proto -lprotobuf -lstdc++ -lm -lrt -ldl -lpthread -Wl,--end-group
-
-HEADERS=${wildcard *.h}
-TARGET_SRCS=$(wildcard simpleOnnx*.cpp)
-TARGET_OBJS=${TARGET_SRCS:.cpp=.o}
-TARGETS=${TARGET_OBJS:.o=}
-
- 
-all: $(TARGETS)
-
-$(TARGETS): %: %.o ioHelper.o
-
-%.o: $(HEADERS)
-
-clean: clean_engines
-	rm -f $(TARGETS) *.o
-
-clean_engines:
-	rm -f *.engine
-
-.PHONY: clean_engines all clean

@@ -1,4 +1,6 @@
-# Copyright (c) 1993-2018, NVIDIA CORPORATION. All rights reserved.
+#!/bin/bash
+
+# Copyright (c) 1993-2019, NVIDIA CORPORATION. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -23,28 +25,19 @@
 # OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-CUDA_INSTALL_DIR=/usr/local/cuda
+#
 
-CXXFLAGS=-std=c++11 -DONNX_ML=1 -Wall -I$(CUDA_INSTALL_DIR)/include 
-LDFLAGS=-L$(CUDA_INSTALL_DIR)/lib64 -L$(CUDA_INSTALL_DIR)/lib64/stubs -L/usr/local/lib
-LDLIBS=-Wl,--start-group -lnvonnxparser -lnvinfer -lcudart_static -lonnx -lonnx_proto -lprotobuf -lstdc++ -lm -lrt -ldl -lpthread -Wl,--end-group
+if [[ -z ${CUML_LIB_DIR} ]]; then
+  echo "Environment variable CUML_LIB_DIR must be set to directory "
+  echo "containing libcuml.so and libcuml++.so."
+  exit 1
+fi
 
-HEADERS=${wildcard *.h}
-TARGET_SRCS=$(wildcard simpleOnnx*.cpp)
-TARGET_OBJS=${TARGET_SRCS:.cpp=.o}
-TARGETS=${TARGET_OBJS:.o=}
+export LD_LIBRARY_PATH=${CUML_LIB_DIR}:${LD_LIBRARY_PATH}
+export CUML_LIB=${CUML_LIB_DIR}/libcuml.so
 
- 
-all: $(TARGETS)
+R --polyglot --jvm --experimental-options \
+  --vm.Drapidsai.cuml.enabled=1 \
+  --vm.Drapidsai.cuml.libpath=${CUML_LIB} \
+  --no-save --R.PrintErrorStacktraces
 
-$(TARGETS): %: %.o ioHelper.o
-
-%.o: $(HEADERS)
-
-clean: clean_engines
-	rm -f $(TARGETS) *.o
-
-clean_engines:
-	rm -f *.engine
-
-.PHONY: clean_engines all clean

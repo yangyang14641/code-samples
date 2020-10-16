@@ -1,4 +1,4 @@
-# Copyright (c) 1993-2018, NVIDIA CORPORATION. All rights reserved.
+# Copyright (c) 1993-2019, NVIDIA CORPORATION. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -23,28 +23,26 @@
 # OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-CUDA_INSTALL_DIR=/usr/local/cuda
+#
 
-CXXFLAGS=-std=c++11 -DONNX_ML=1 -Wall -I$(CUDA_INSTALL_DIR)/include 
-LDFLAGS=-L$(CUDA_INSTALL_DIR)/lib64 -L$(CUDA_INSTALL_DIR)/lib64/stubs -L/usr/local/lib
-LDLIBS=-Wl,--start-group -lnvonnxparser -lnvinfer -lcudart_static -lonnx -lonnx_proto -lprotobuf -lstdc++ -lm -lrt -ldl -lpthread -Wl,--end-group
+import polyglot
 
-HEADERS=${wildcard *.h}
-TARGET_SRCS=$(wildcard simpleOnnx*.cpp)
-TARGET_OBJS=${TARGET_SRCS:.cpp=.o}
-TARGETS=${TARGET_OBJS:.o=}
+# bind kernel from PTX file to callable
+bindkernel = polyglot.eval(language='grcuda', string='bindkernel')
+kernel = bindkernel('saxpy.ptx', 'saxpy', 'sint32, float, pointer, pointer')
 
- 
-all: $(TARGETS)
+# create and initialize two device arrays
+devicearray = polyglot.eval(language='grcuda', string='DeviceArray')
+n = 1_000_000
+arr_x = devicearray('float', n)
+arr_y = devicearray('float', n)
 
-$(TARGETS): %: %.o ioHelper.o
+for i in range(n):
+    arr_x[i] = i
+    arr_y[i] = 1
 
-%.o: $(HEADERS)
+# launch kernel
+kernel(80, 128)(n, 2, arr_x, arr_y)
 
-clean: clean_engines
-	rm -f $(TARGETS) *.o
-
-clean_engines:
-	rm -f *.engine
-
-.PHONY: clean_engines all clean
+first10 = ', '.join(map(lambda x: str(x), arr_y[0:10]))
+print(first10, '...')

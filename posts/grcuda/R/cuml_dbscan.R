@@ -1,4 +1,4 @@
-# Copyright (c) 1993-2018, NVIDIA CORPORATION. All rights reserved.
+# Copyright (c) 1993-2019, NVIDIA CORPORATION. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -23,28 +23,37 @@
 # OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-CUDA_INSTALL_DIR=/usr/local/cuda
+#
 
-CXXFLAGS=-std=c++11 -DONNX_ML=1 -Wall -I$(CUDA_INSTALL_DIR)/include 
-LDFLAGS=-L$(CUDA_INSTALL_DIR)/lib64 -L$(CUDA_INSTALL_DIR)/lib64/stubs -L/usr/local/lib
-LDLIBS=-Wl,--start-group -lnvonnxparser -lnvinfer -lcudart_static -lonnx -lonnx_proto -lprotobuf -lstdc++ -lm -lrt -ldl -lpthread -Wl,--end-group
+# install.packages('seriation')
+library(seriation)
+library(ggplot2)
+data('Chameleon')
 
-HEADERS=${wildcard *.h}
-TARGET_SRCS=$(wildcard simpleOnnx*.cpp)
-TARGET_OBJS=${TARGET_SRCS:.cpp=.o}
-TARGETS=${TARGET_OBJS:.o=}
+n_rows <- nrow(chameleon_ds4)
+n_cols <- ncol(chameleon_ds4)
+device_array <- eval.polyglot('grcuda', 'DeviceArray')
 
- 
-all: $(TARGETS)
+data <- device_array('double', n_rows, n_cols)
+for (r in 1:n_rows) {
+  for (c in 1:n_cols) {
+    data[r, c] <- chameleon_ds4[r, c]
+  }
+}
 
-$(TARGETS): %: %.o ioHelper.o
+labels <- device_array('int', n_rows)
 
-%.o: $(HEADERS)
+dbscan_fit <- eval.polyglot('grcuda', 'ML::cumlDpDbscanFit')
+eps <- 5
+min_samples <- 15
+max_bytes_per_batch <- 0
+verbosity <- 0
 
-clean: clean_engines
-	rm -f $(TARGETS) *.o
+dbscan_fit(data, n_rows, n_cols, eps, min_samples, labels, max_bytes_per_batch, verbosity)
+chameleon_ds4$label <- labels[1:n_rows]
 
-clean_engines:
-	rm -f *.engine
-
-.PHONY: clean_engines all clean
+print(
+  ggplot(chameleon_ds4, aes(x,y, color=factor(label))) + geom_point() +
+    scale_colour_viridis_d(
+      name='Cluster',
+      labels=c('outlier', '0', '1', '2', '3', '4', '5')))
